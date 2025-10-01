@@ -29,6 +29,32 @@ function create_listing_post_type() {
 }
 add_action('init', 'create_listing_post_type');
 
+// Add meta box to display listing ID in admin
+function add_listing_id_meta_box() {
+    add_meta_box(
+        'listing_id_meta_box',
+        'Listing ID',
+        'display_listing_id_meta_box',
+        'listing',
+        'side',
+        'high'
+    );
+}
+add_action('add_meta_boxes', 'add_listing_id_meta_box');
+
+// Display the listing ID meta box
+function display_listing_id_meta_box($post) {
+    $listing_id = get_post_meta($post->ID, 'listing_id', true);
+    ?>
+    <p>
+        <label for="listing_id"><strong>Listing ID:</strong></label><br>
+        <input type="text" id="listing_id" name="listing_id" value="<?php echo esc_attr($listing_id); ?>" 
+               style="width: 100%; padding: 5px; background-color: #f0f0f0;" readonly />
+        <em style="font-size: 11px; color: #666;">This field is read-only and set automatically.</em>
+    </p>
+    <?php
+}
+
 // Add rating field BEFORE comment textarea
 function add_rating_field_before_comment($fields) {
     $rating_html = '<p class="comment-form-rating">
