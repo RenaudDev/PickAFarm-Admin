@@ -82,6 +82,7 @@ add_filter('rest_prepare_comment', 'add_rating_to_rest_api', 10, 2);
 
 // Register custom REST route for submitting reviews
 function register_review_routes() {
+    error_log('Listing Reviews: Registering submit route');
     register_rest_route('reviews/v1', '/submit', array(
         'methods' => 'POST',
         'callback' => 'submit_review_api',
