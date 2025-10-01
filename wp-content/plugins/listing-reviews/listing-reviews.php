@@ -188,8 +188,7 @@ add_action('init', 'handle_preflight');
 
 // Register GET reviews endpoint
 function register_get_reviews_route() {
-    register_rest_route('reviews/v1', '/listing/(?P<listing_id>[a-zA-Z0-9_-]+)'
-//                                ^ add underscore', array(
+    register_rest_route('reviews/v1', '/listing/(?P<listing_id>[a-zA-Z0-9_-]+)', array(
         'methods' => 'GET',
         'callback' => 'get_reviews_by_listing_id',
         'permission_callback' => '__return_true'
