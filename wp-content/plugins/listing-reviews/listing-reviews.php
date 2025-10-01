@@ -95,13 +95,16 @@ function submit_review_api($request) {
     $params = $request->get_json_params();
     
     // Validate required fields
-    if (empty($params['post_id']) || empty($params['rating']) || empty($params['comment'])) {
+    if (empty($params['listing_id']) || empty($params['rating']) || empty($params['comment'])) {
         return new WP_Error('missing_fields', 'Missing required fields', array('status' => 400));
     }
     
+    // Get or create WordPress post for this listing
+    $post_id = get_or_create_listing_post($params['listing_id'], $params['listing_title'] ?? null);
+    
     // Create comment
     $comment_data = array(
-        'comment_post_ID' => intval($params['post_id']),
+        'comment_post_ID' => $post_id,
         'comment_content' => sanitize_textarea_field($params['comment']),
         'comment_author' => sanitize_text_field($params['name'] ?? 'Anonymous'),
         'comment_author_email' => sanitize_email($params['email'] ?? ''),
@@ -116,11 +119,41 @@ function submit_review_api($request) {
         return array(
             'success' => true,
             'message' => 'Review submitted for moderation',
-            'comment_id' => $comment_id
+            'comment_id' => $comment_id,
+            'listing_id' => $params['listing_id']
         );
     }
     
     return new WP_Error('failed', 'Failed to submit review', array('status' => 500));
+}
+
+// Helper function: Get or create listing post
+function get_or_create_listing_post($listing_id, $listing_title = null) {
+    // Check if post already exists for this listing_id
+    $existing = get_posts(array(
+        'post_type' => 'listing',
+        'meta_key' => 'listing_id',
+        'meta_value' => $listing_id,
+        'posts_per_page' => 1,
+        'post_status' => 'any'
+    ));
+    
+    if (!empty($existing)) {
+        return $existing[0]->ID;
+    }
+    
+    // Create new listing post
+    $post_id = wp_insert_post(array(
+        'post_type' => 'listing',
+        'post_title' => $listing_title ?? 'Listing ' . $listing_id,
+        'post_status' => 'publish',
+        'comment_status' => 'open'
+    ));
+    
+    // Store the listing ID as post meta
+    add_post_meta($post_id, 'listing_id', sanitize_text_field($listing_id));
+    
+    return $post_id;
 }
 // Add CORS headers for API requests
 function add_cors_headers() {
@@ -152,3 +185,71 @@ function handle_preflight() {
     }
 }
 add_action('init', 'handle_preflight');
+
+// Register GET reviews endpoint
+function register_get_reviews_route() {
+    register_rest_route('reviews/v1', '/listing/(?P<listing_id>[a-zA-Z0-9-]+)', array(
+        'methods' => 'GET',
+        'callback' => 'get_reviews_by_listing_id',
+        'permission_callback' => '__return_true'
+    ));
+}
+add_action('rest_api_init', 'register_get_reviews_route');
+
+// Get reviews for a specific listing
+function get_reviews_by_listing_id($request) {
+    $listing_id = $request['listing_id'];
+    
+    // Find WordPress post for this listing ID
+    $posts = get_posts(array(
+        'post_type' => 'listing',
+        'meta_key' => 'listing_id',
+        'meta_value' => $listing_id,
+        'posts_per_page' => 1
+    ));
+    
+    if (empty($posts)) {
+        return array(
+            'reviews' => array(),
+            'count' => 0,
+            'average_rating' => 0
+        );
+    }
+    
+    $post_id = $posts[0]->ID;
+    
+    // Get approved comments
+    $comments = get_comments(array(
+        'post_id' => $post_id,
+        'status' => 'approve',
+        'orderby' => 'comment_date',
+        'order' => 'DESC'
+    ));
+    
+    $reviews = array();
+    $total_rating = 0;
+    
+    foreach ($comments as $comment) {
+        $rating = get_comment_meta($comment->comment_ID, 'rating', true);
+        $rating = intval($rating);
+        
+        $reviews[] = array(
+            'id' => $comment->comment_ID,
+            'author' => $comment->comment_author,
+            'content' => $comment->comment_content,
+            'rating' => $rating,
+            'date' => $comment->comment_date,
+            'date_gmt' => $comment->comment_date_gmt
+        );
+        
+        $total_rating += $rating;
+    }
+    
+    $average = count($reviews) > 0 ? round($total_rating / count($reviews), 1) : 0;
+    
+    return array(
+        'reviews' => $reviews,
+        'count' => count($reviews),
+        'average_rating' => $average
+    );
+}
