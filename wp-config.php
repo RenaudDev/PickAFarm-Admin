@@ -25,11 +25,17 @@ define( 'WP_CACHE', true );
 /** The name of the database for WordPress */
 define( 'DB_NAME', 'wordpress' );
 
-/** Database username */
-define( 'DB_USER', 'wordpress' );
-
-/** Database password */
-define('DB_PASSWORD', '070b6d9005a520349f1b1b3c73417447e448e1876ea66a58');
+if (file_exists(__DIR__ . '/.env.local')) {
+    // Local development
+    define( 'DB_USER', 'root' );
+    define('DB_PASSWORD', '');
+    define( 'WP_DEBUG', true );
+} else {
+    // Production
+    define( 'DB_USER', 'wordpress' );
+    define('DB_PASSWORD', '070b6d9005a520349f1b1b3c73417447e448e1876ea66a58');
+    define( 'WP_DEBUG', false );
+}
 
 /** Database hostname */
 define( 'DB_HOST', 'localhost' );
@@ -89,9 +95,7 @@ $table_prefix = 'wp_';
  *
  * @link https://wordpress.org/support/article/debugging-in-wordpress/
  */
-if ( ! defined( 'WP_DEBUG' ) ) {
-	define( 'WP_DEBUG', false );
-}
+
 
 /* That's all, stop editing! Happy publishing. */
 
