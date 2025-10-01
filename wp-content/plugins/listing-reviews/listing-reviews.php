@@ -153,7 +153,7 @@ function get_or_create_listing_post($listing_id, $listing_title = null) {
     // Store the listing ID as post meta
     add_post_meta($post_id, 'listing_id', sanitize_text_field($listing_id));
     
-    return $post_id;
+    return $post_id; 
 }
 // Add CORS headers for API requests
 function add_cors_headers() {
